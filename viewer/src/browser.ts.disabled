@@ -1,0 +1,42 @@
+import fetch from "node-fetch";
+import { HTTPRequest, launch } from "puppeteer-core";
+
+async function main() {
+	const browser = await launch({
+		executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+		headless: false,
+		args: ["--disable-web-security"],
+	});
+	const context = await browser.createIncognitoBrowserContext();
+	const page = await context.newPage();
+
+	const client = await page.target().createCDPSession();
+	await client.send("Fetch.enable");
+	client.on(
+		"Fetch.requestPaused",
+		async ({
+			requestId,
+			request,
+			frameId,
+			resourceType,
+			responseErrorReason,
+			responseStatusCode,
+			responseHeaders,
+			networkId,
+		}) => {
+			const { url, method, postData, headers } = request;
+
+			const response = await fetch(url, {
+				method: method,
+				body: postData,
+				headers,
+			});
+			const buffer = await response.buffer();
+		}
+	);
+
+	// await page.setRequestInterception(true);
+	await page.goto("https://www.twitch.tv/jxxq_");
+}
+
+main();

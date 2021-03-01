@@ -9,6 +9,16 @@ import FormData from "form-data";
 import kill from "tree-kill";
 import readline from "readline";
 const __dirname = path.resolve();
+var torpath = "tor";
+if (process.platform == "win32") {
+	torpath = path.join(__dirname, "tor", "tor.exe");
+} else if (process.platform == "darwin") {
+	torpath = path.join(__dirname, "tor", "tor-mac");
+} else if (process.platform == "linux") {
+	torpath = path.join(__dirname, "tor", "tor-linux");
+} else {
+	console.error("warning unsupported platform");
+}
 
 const rl = readline.createInterface({
 	input: process.stdin,
@@ -347,13 +357,19 @@ async function getTorProxies(count, offset = 0) {
 		const counter = i + offset;
 		console.log("[Tor] connect: " + counter);
 		const port = portOffset + i;
-		const tor = spawn("tor", `--SocksPort ${port} --DataDirectory ${__dirname}/tmp/tor${counter}`.split(" "));
+		const tor = spawn(
+			torpath,
+			`--SocksPort ${port} --DataDirectory ${__dirname}/tmp/tor${counter} --GeoIPFile tor/geoip --GeoIPv6File tor/geoip6`.split(
+				" "
+			)
+		);
 		tor.on("exit", () => console.log("[Tor] killed: " + counter));
 		tor.on("error", (error) => console.error("[Tor] err", error));
 		tor.stderr.on("data", (data) => console.error(data));
 		promises.push(
 			new Promise((res, rej) => {
 				tor.stdout.on("data", (data) => {
+					// console.log(data.toString());
 					if (data.toString().includes("100%")) {
 						// console.log(data.toString().replace("\n", ""));
 						console.log("[Tor] connected: " + counter);
@@ -427,7 +443,7 @@ async function setThreads(channel, threadCount) {
 	}
 }
 
-fs.readFile(path.join(__dirname, "channel.txt"), { encoding: "utf8" }).then(async (channel) => {
+rl.question("Twitch Channel name:\n", async (channel) => {
 	await fs.mkdir(__dirname + "/tmp").catch((e) => {});
 
 	rl.question("How many viewers?\n", (answer) => {

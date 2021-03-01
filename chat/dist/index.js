@@ -49,8 +49,7 @@ var rl = readline_1.default.createInterface({
     input: process.stdin,
     output: process.stdout,
 });
-var channel = fs_1.default.readFileSync(path_1.default.join(__dirname, "channel.txt"), { encoding: "utf8" });
-console.log("CHANNEL", channel);
+var channel = "";
 var lastChat;
 var chats = [];
 var listen = [];
@@ -85,13 +84,24 @@ function chat(_a) {
     });
 }
 function loadText() {
-    listen = fs_1.default.readdirSync(path_1.default.join(__dirname, "/text/"), { encoding: "utf8" }).filter(function (x) { return x.endsWith(".txt"); });
-    var list = {};
-    listen.forEach(function (liste) {
-        var name = liste.split(".")[0];
-        list[name] = fs_1.default.readFileSync(path_1.default.join(__dirname, "/text/", liste), { encoding: "utf8" }).split("\n");
+    return __awaiter(this, void 0, void 0, function () {
+        var list;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0: return [4 /*yield*/, fs_1.default.promises.mkdir(path_1.default.join(__dirname, "text")).catch(function (e) { })];
+                case 1:
+                    _a.sent();
+                    listen = fs_1.default.readdirSync(path_1.default.join(__dirname, "/text/"), { encoding: "utf8" }).filter(function (x) { return x.endsWith(".txt"); });
+                    list = {};
+                    listen.forEach(function (liste) {
+                        var name = liste.split(".")[0];
+                        list[name] = fs_1.default.readFileSync(path_1.default.join(__dirname, "/text/", liste), { encoding: "utf8" }).split("\n");
+                    });
+                    listen = list;
+                    return [2 /*return*/];
+            }
+        });
     });
-    listen = list;
 }
 function main() {
     return __awaiter(this, void 0, void 0, function () {
@@ -120,7 +130,7 @@ function main() {
                 case 4:
                     setTimeout(function () {
                         if (!connected) {
-                            console.error("Couldnt connect all accounts to twitch");
+                            console.error("Could not connect all accounts to twitch");
                             cli();
                         }
                     }, 1000 * 10);
@@ -140,16 +150,16 @@ function cli() {
         shorthands[key[0]] = listen[key];
     });
     var question = Object.keys(listen).map(function (key) { return key[0] + "(" + key.slice(1) + ")"; });
-    rl.question("Aktion: " + question + ", n(euladen der texte), or enter any message (! as prefix to send it as the same last person))\n", function (answer) {
+    rl.question("Aktion: " + question + ", l(reload all texts), or enter any message (! as prefix to send it as the same last person)\n", function (answer) {
         var liste = shorthands[answer];
         if (liste) {
             randomSchreiben(liste, true);
         }
-        else if (answer === "n") {
+        else if (answer === "l") {
             loadText();
         }
         else if (answer.length <= 1) {
-            console.error("ungültige aktion");
+            console.error("invalid action");
         }
         else {
             if (!answer.startsWith("!") || !lastChat) {
@@ -176,7 +186,7 @@ function randomSchreiben(arr, shouldDelete) {
         return __generator(this, function (_a) {
             msg = arr.random();
             if (!msg)
-                return [2 /*return*/, console.log("alle nachrichten wurden schon geschrieben")];
+                return [2 /*return*/, console.log("empty list: all messages were already sent")];
             if (shouldDelete)
                 arr.remove(msg);
             lastChat = newRandomChat();
@@ -185,7 +195,10 @@ function randomSchreiben(arr, shouldDelete) {
         });
     });
 }
-main();
+rl.question("Twitch Channel name:\n", function (name) {
+    channel = name;
+    main();
+});
 function sleep(ms) {
     return new Promise(function (res) { return setTimeout(res, ms); });
 }

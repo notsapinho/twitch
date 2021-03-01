@@ -10,8 +10,7 @@ const rl = readline.createInterface({
 	output: process.stdout,
 });
 
-const channel = fs.readFileSync(path.join(__dirname, "channel.txt"), { encoding: "utf8" });
-console.log("CHANNEL", channel);
+var channel = "";
 var lastChat;
 var chats = [];
 var listen = [];
@@ -33,7 +32,7 @@ async function chat({ token, username }) {
 }
 
 async function loadText() {
-	await fs.promises.mkdir(path.join(__dirname, "text")).caught();
+	await fs.promises.mkdir(path.join(__dirname, "text")).catch((e) => {});
 
 	listen = fs.readdirSync(path.join(__dirname, "/text/"), { encoding: "utf8" }).filter((x) => x.endsWith(".txt"));
 	const list = {};
@@ -120,7 +119,10 @@ async function randomSchreiben(arr, shouldDelete) {
 	lastChat.broadcast(msg);
 }
 
-main();
+rl.question("Twitch Channel name:\n", (name) => {
+	channel = name;
+	main();
+});
 
 function sleep(ms) {
 	return new Promise((res) => setTimeout(res, ms));

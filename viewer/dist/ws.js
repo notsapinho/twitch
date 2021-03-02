@@ -24,23 +24,6 @@ client.onopen = function (event) {
     send({ type: "PING" });
     var topics = [
         "video-playback-by-id." + channel_id,
-        // "pv-watch-party-events.97295905",
-        // "stream-chat-room-v1.97295905",
-        // "extension-control.97295905",
-        // "broadcast-settings-update.97295905",
-        // "radio-events-v1.97295905",
-        // "predictions-channel-v1.97295905",
-        // "hype-train-events-v1.97295905",
-        // "raid.97295905",
-        // "ads.97295905",
-        // "ad-property-refresh.97295905",
-        // "channel-ad-poll-update-events.97295905",
-        // "channel-bounty-board-events.cta.97295905",
-        // "channel-cheer-events-public-v1.97295905",
-        // "channel-sub-gifts-v1.97295905",
-        // "channel-drop-events.97295905",
-        // "community-boost-events-v1.97295905",
-        // "community-points-channel-v1.97295905",
     ];
     for (var _i = 0, topics_1 = topics; _i < topics_1.length; _i++) {
         var topic = topics_1[_i];

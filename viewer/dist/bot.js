@@ -491,16 +491,16 @@ function getTorProxies(count, offset) {
                     portOffset = 9060 + offset;
                     _loop_1 = function () {
                         var counter, port, tor;
-                        return __generator(this, function (_b) {
-                            switch (_b.label) {
+                        return __generator(this, function (_a) {
+                            switch (_a.label) {
                                 case 0:
                                     counter = i + offset;
                                     console.log("[Tor] connect: " + counter);
                                     port = portOffset + i;
                                     tor = child_process_1.spawn(torpath, ("--SocksPort " + port + " --DataDirectory " + __dirname + "/tmp/tor" + counter + " --GeoIPFile tor/geoip --GeoIPv6File tor/geoip6").split(" "));
                                     tor.on("exit", function () { return console.log("[Tor] killed: " + counter); });
-                                    tor.on("error", function (error) { return console.error("[Tor] err", error); });
-                                    tor.stderr.on("data", function (data) { return console.error(data); });
+                                    tor.on("error", function (error) { return console.error("[Tor] err", error.toString()); });
+                                    tor.stderr.on("data", function (data) { return console.error(data.toString()); });
                                     promises.push(new Promise(function (res, rej) {
                                         tor.stdout.on("data", function (data) {
                                             // console.log(data.toString());
@@ -516,7 +516,7 @@ function getTorProxies(count, offset) {
                                     }));
                                     return [4 /*yield*/, sleep(500)];
                                 case 1:
-                                    _b.sent();
+                                    _a.sent();
                                     return [2 /*return*/];
                             }
                         });

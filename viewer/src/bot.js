@@ -356,6 +356,7 @@ async function getTorProxies(count, offset = 0) {
 	for (var i = 0; i < count; i++) {
 		const counter = i + offset;
 		console.log("[Tor] connect: " + counter);
+
 		const port = portOffset + i;
 		const tor = spawn(
 			torpath,
@@ -363,9 +364,11 @@ async function getTorProxies(count, offset = 0) {
 				" "
 			)
 		);
+
 		tor.on("exit", () => console.log("[Tor] killed: " + counter));
-		tor.on("error", (error) => console.error("[Tor] err", error));
-		tor.stderr.on("data", (data) => console.error(data));
+		tor.on("error", (error) => console.error("[Tor] err", error.toString()));
+		tor.stderr.on("data", (data) => console.error(data.toString()));
+
 		promises.push(
 			new Promise((res, rej) => {
 				tor.stdout.on("data", (data) => {

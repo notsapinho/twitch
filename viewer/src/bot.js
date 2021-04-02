@@ -8,7 +8,9 @@ import path from "path";
 import FormData from "form-data";
 import kill from "tree-kill";
 import readline from "readline";
-const __dirname = path.resolve();
+import randomUserAgent from "random-useragent";
+
+const __dirname = path.resolve(path.dirname(""));
 var torpath = "tor";
 if (process.platform == "win32") {
 	torpath = path.join(__dirname, "tor", "tor.exe");
@@ -20,6 +22,7 @@ if (process.platform == "win32") {
 	console.error("warning unsupported platform");
 }
 
+const timeout = 3000;
 const rl = readline.createInterface({
 	input: process.stdin,
 	output: process.stdout,
@@ -38,7 +41,7 @@ function getRandomId() {
 	});
 }
 
-async function getCookies({ username, agent }) {
+export async function getCookies({ username, agent }) {
 	const req = await fetch(`https://www.twitch.tv/${username}`, { agent });
 	const cookieHeaders = req.headers.raw()["set-cookie"];
 
@@ -57,14 +60,16 @@ async function getCookies({ username, agent }) {
 		.join("; ");
 }
 
-async function getTokenSignature({ channel, cookie, agent }) {
+export async function getTokenSignature({ channel, cookie, agent }) {
 	const req = await fetch("https://gql.twitch.tv/gql", {
 		agent,
+		timeout,
 		headers: {
 			"client-id": "kimne78kx3ncx6brgo4mv6wki5h1ko",
 			"content-type": "text/plain; charset=UTF-8",
-			"device-id": "undefined",
+			"device-id": getRandomId(),
 			cookie,
+			"User-Agent": randomUserAgent.getRandom(),
 		},
 		referrer: "https://www.twitch.tv/",
 		referrerPolicy: "strict-origin-when-cross-origin",
@@ -79,6 +84,7 @@ async function getTokenSignature({ channel, cookie, agent }) {
 		credentials: "include",
 	});
 	const { data } = await req.json();
+	// console.log(data);
 	const { value, signature } = data.streamPlaybackAccessToken;
 	return { signature, token: encodeURIComponent(value) };
 }
@@ -86,15 +92,26 @@ async function getTokenSignature({ channel, cookie, agent }) {
 async function fetchPlaylistUrl({ channel, token, signature, agent }) {
 	const rand = Math.floor(9999999 * Math.random());
 	const req = await fetch(
-		`https://usher.ttvnw.net/api/channel/hls/${channel}.m3u8?allow_source=true&fast_bread=true&p=${rand}&play_session_id=${getRandomId()}&player_backend=mediaplayer&playlist_include_framerate=true&reassignments_supported=true&sig=${signature}&supported_codecs=avc1&token=${token}&cdm=wv&player_version=1.3.0`,
-		{ agent }
+		`https://usher.ttvnw.net/api/channel/hls/${channel}.m3u8?allow_source=true&p=2427365&fast_bread=true&p=${rand}&play_session_id=${getRandomId()}&player_backend=mediaplayer&playlist_include_framerate=true&reassignments_supported=true&sig=${signature}&supported_codecs=avc1&token=${token}&cdm=wv&player_version=1.3.0`,
+		{
+			agent,
+			timeout,
+
+			headers: {
+				"User-Agent": randomUserAgent.getRandom(),
+			},
+		}
 	);
 	const playlist = await req.text();
-	return playlist.slice(playlist.indexOf("https://"));
+	const part = playlist;
+	return part.slice(part.indexOf("https://"));
 }
 
 function getFragmentUrl(playlist) {
-	const base = playlist.slice(playlist.indexOf("#EXTINF"));
+	var index = playlist.indexOf("#EXT-X-TWITCH-PREFETCH");
+	if (index == -1) index = playlist.indexOf("#EXTINF");
+
+	const base = playlist.slice(index);
 	const link = base.slice(base.indexOf("https://"));
 	return link.slice(0, link.indexOf("\n"));
 }
@@ -102,6 +119,10 @@ function getFragmentUrl(playlist) {
 async function fetchPlaylist({ playlist, agent }) {
 	const req = await fetch(playlist, {
 		method: "GET",
+		timeout,
+		headers: {
+			"User-Agent": randomUserAgent.getRandom(),
+		},
 		agent,
 	});
 	return await req.text();
@@ -111,46 +132,48 @@ async function sleep(ms) {
 	return new Promise((res) => setTimeout(res, ms));
 }
 
-async function view({ channel, agent, persist }) {
+async function view({ channel, agent, persist, i }) {
 	const cookie = await getCookies(channel);
 	const { signature, token } = await getTokenSignature({ channel, cookie, agent });
 	const { channel_id } = JSON.parse(decodeURIComponent(token));
 	const playlistUrl = await fetchPlaylistUrl({ channel, token, signature, agent });
-	const device_id = getRandomId();
-	const client_id = "kimne78kx3ncx6brgo4mv6wki5h1ko";
+	// const device_id = getRandomId();
+	// const client_id = "kimne78kx3ncx6brgo4mv6wki5h1ko";
 
-	const ping = await fetch(
-		`https://countess.twitch.tv/ping.gif?u=${encodeURIComponent({ type: "channel", id: channel_id })}`
-	);
-	await ping.buffer();
+	// const ping = await fetch(
+	// 	`https://countess.twitch.tv/ping.gif?u=${encodeURIComponent({ type: "channel", id: channel_id })}`
+	// );
+	// await ping.buffer();
 
-	await fetch("https://gql.twitch.tv/gql", {
-		headers: {
-			"client-id": client_id,
-			"content-type": "text/plain;charset=UTF-8",
-			"x-device-id": device_id,
-			cookie,
-		},
-		body: JSON.stringify([
-			{
-				operationName: "WatchTrackQuery",
-				variables: { channelLogin: channel, videoID: null, hasVideoID: false },
-				extensions: {
-					persistedQuery: {
-						version: 1,
-						sha256Hash: "38bbbbd9ae2e0150f335e208b05cf09978e542b464a78c2d4952673cd02ea42b",
-					},
-				},
-			},
-		]),
-		method: "POST",
-	});
-	if (persist) await persistsViews({ client_id, device_id, channel_id, channel });
+	// await fetch("https://gql.twitch.tv/gql", {
+	// 	headers: {
+	// 		"client-id": client_id,
+	// 		"content-type": "text/plain;charset=UTF-8",
+	// 		"x-device-id": device_id,
+	// 		cookie,
+	// 		"User-Agent": randomUserAgent.getRandom(),
+	// 	},
+	// 	body: JSON.stringify([
+	// 		{
+	// 			operationName: "WatchTrackQuery",
+	// 			variables: { channelLogin: channel, videoID: null, hasVideoID: false },
+	// 			extensions: {
+	// 				persistedQuery: {
+	// 					version: 1,
+	// 					sha256Hash: "38bbbbd9ae2e0150f335e208b05cf09978e542b464a78c2d4952673cd02ea42b",
+	// 				},
+	// 			},
+	// 		},
+	// 	]),
+	// 	method: "POST",
+	// });
+	// if (persist) await persistsViews({ client_id, device_id, channel_id, channel });
 
-	return sendViews({ playlistUrl, agent, i: 0, persist });
+	return await sendViews({ playlistUrl, agent, i, persist });
 }
 
 async function persistsViews({ client_id, device_id, channel_id, channel }) {
+	return;
 	const settingsText = await (
 		await fetch(`https://static.twitchcdn.net/config/settings.b3e1951c3857d8afda25a4a4d9d76913.js`)
 	).text();
@@ -341,11 +364,19 @@ async function persistsViews({ client_id, device_id, channel_id, channel }) {
 async function sendViews({ playlistUrl, agent, i, persist }) {
 	const playlist = await fetchPlaylist({ playlist: playlistUrl, agent });
 	const fragmentUrl = getFragmentUrl(playlist);
-	await fetch(fragmentUrl, { method: "HEAD", agent });
+	if (!fragmentUrl) console.log({ playlist, playlistUrl });
+	await fetch(fragmentUrl, {
+		method: "HEAD",
+		agent,
+		timeout,
+		headers: {
+			"User-Agent": randomUserAgent.getRandom(),
+		},
+	});
 
-	console.log(i++);
+	console.log(`[Bot] view: ${i}`);
 	if (persist) {
-		setTimeout(sendViews.bind(null, { playlistUrl, agent, i, persist }), 1000 * 5);
+		setTimeout(sendViews.bind(null, { playlistUrl, agent, i, persist }), 1000 * 2);
 	}
 }
 
@@ -358,11 +389,12 @@ async function getTorProxies(count, offset = 0) {
 		console.log("[Tor] connect: " + counter);
 
 		const port = portOffset + i;
+		const dataDir = path.join(__dirname, "tmp", `tor${counter}`);
+		const geoip = path.join(__dirname, "tor", "geoip");
+		const geoip6 = path.join(__dirname, "tor", "geoip6");
 		const tor = spawn(
 			torpath,
-			`--SocksPort ${port} --DataDirectory ${__dirname}/tmp/tor${counter} --GeoIPFile tor/geoip --GeoIPv6File tor/geoip6`.split(
-				" "
-			)
+			`--SocksPort ${port} --DataDirectory ${dataDir} --GeoIPFile ${geoip} --GeoIPv6File ${geoip6}`.split(" ")
 		);
 
 		tor.on("exit", () => console.log("[Tor] killed: " + counter));
@@ -372,9 +404,8 @@ async function getTorProxies(count, offset = 0) {
 		promises.push(
 			new Promise((res, rej) => {
 				tor.stdout.on("data", (data) => {
-					// console.log(data.toString());
+					// console.log(data.toString().replace("\n", ""));
 					if (data.toString().includes("100%")) {
-						// console.log(data.toString().replace("\n", ""));
 						console.log("[Tor] connected: " + counter);
 						const agent = new SocksProxyAgent({ host: "localhost", port });
 						agent.tor = tor;
@@ -384,7 +415,7 @@ async function getTorProxies(count, offset = 0) {
 				setTimeout(() => rej(new Error("[Tor] timeout connect")), 1000 * 30);
 			})
 		);
-		await sleep(500);
+		// await sleep(500);
 	}
 	const catched = await Promise.all(promises.map((p) => p.catch((e) => e)));
 	const filtered = catched.filter((result) => !(result instanceof Error));
@@ -399,60 +430,96 @@ async function getListProxies(count) {
 			.slice(0, count)
 			.map(async (x) => {
 				const [host, port] = x.split(":");
-				const ip = await (await fetch(`https://api.my-ip.io/ip`, { agent, timeout: 1000 * 3 })).text();
+				const ip = await (await fetch(`https://api.my-ip.io/ip`, { agent, timeout })).text();
 				console.log(ip);
-				return new HttpsProxyAgent({ host, port, timeout: 1000 * 3 });
+				return new HttpsProxyAgent({ host, port, timeout });
 			})
 	);
 	return result.filter();
 }
 
-var threads;
-var threadIds;
+var threads = {};
+var threadIds = 0;
 var torI = 0;
+var proxylessIp;
 
-function addThread(channel) {
+async function addThread(agent) {
 	const id = threadIds++;
 
 	threads[id] = true;
 
+	// if (!agent) agent = (await getTorProxies(1, torI++))[0];
+
 	setTimeout(async () => {
 		while (true) {
-			if (threads[i] == false) return;
+			if (threads[id] == false) return;
 			try {
-				const i = torI++;
-				console.log("[Bot] starting:" + i);
+				const ip = await (await fetch("https://api.my-ip.io/ip", { agent })).text();
+				if (ip === proxylessIp) {
+					await sleep(1000 * 1);
+					throw "[Proxy] transparent: skipping";
+				}
 
-				var agent = (await getTorProxies(1, i))[0];
-				if (!agent) return;
-				await view({ channel, agent, persist: false });
-
-				// await sleep(1000 * 50);
+				await view({ channel: ChannelName, agent, persist: false, i: id });
 			} catch (error) {
 				console.error(error);
 			}
-			kill(agent.tor.pid, "SIGKILL");
+
+			try {
+				// agent.tor.kill("SIGHUP");
+				kill(agent.tor.pid, "SIGHUP");
+			} catch (e) {
+				// console.error(e);
+			}
 		}
 	});
 }
 
-async function setThreads(channel, threadCount) {
-	threads = {};
+async function setThreads(threadCount) {
+	var agents = {};
+
+	agents = await getTorProxies(threadCount, threadIds);
 
 	for (var t = 0; t < threadCount; t++) {
 		threads[t + threadIds] = true;
-		addThread(channel);
-		await sleep(250);
+		addThread(agents[t]);
+		// await sleep(250);
 	}
 }
 
-rl.question("Twitch Channel name:\n", async (channel) => {
-	await fs.mkdir(__dirname + "/tmp").catch((e) => {});
+let ChannelName = "";
+let input = "";
 
-	rl.question("How many viewers?\n", (answer) => {
-		var viewers = parseInt(answer);
-		if (isNaN(viewers) || viewers <= 0) viewers = 20;
+if (!global.module) {
+	rl.question("Twitch Channel name:\n", async (channel) => {
+		await fs.mkdir(__dirname + "/tmp").catch((e) => {});
+		ChannelName = channel;
 
-		setThreads(channel, viewers / 2);
+		rl.question("How many viewers?\n", async (answer) => {
+			var viewers = parseInt(answer);
+			if (isNaN(viewers) || viewers <= 0) viewers = 1;
+			proxylessIp = await (await fetch("https://api.my-ip.io/ip")).text();
+
+			setThreads(Math.ceil(viewers));
+
+			interactive();
+		});
 	});
-});
+}
+
+function interactive() {
+	process.stdin.on("data", async (data) => {
+		data = data.toString();
+		if (data.charCodeAt(0) !== 13) return (input += data);
+		if (isNaN(Number(input))) {
+			console.log("Change channel to:" + input);
+			ChannelName = input;
+			input = "";
+			return;
+		}
+		const count = Number(input) - threadIds;
+		console.log(`[Thread] count set to: ${input} | Adding: ${count}`);
+		input = "";
+		await setThreads(count);
+	});
+}

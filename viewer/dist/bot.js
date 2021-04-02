@@ -39,6 +39,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.getTokenSignature = exports.getCookies = void 0;
 var node_fetch_1 = __importDefault(require("node-fetch"));
 var child_process_1 = require("child_process");
 require("missing-native-js-functions");
@@ -49,7 +50,8 @@ var path_1 = __importDefault(require("path"));
 var form_data_1 = __importDefault(require("form-data"));
 var tree_kill_1 = __importDefault(require("tree-kill"));
 var readline_1 = __importDefault(require("readline"));
-var __dirname = path_1.default.resolve();
+var random_useragent_1 = __importDefault(require("random-useragent"));
+var __dirname = path_1.default.resolve(path_1.default.dirname(""));
 var torpath = "tor";
 if (process.platform == "win32") {
     torpath = path_1.default.join(__dirname, "tor", "tor.exe");
@@ -107,6 +109,7 @@ function getCookies(_a) {
         });
     });
 }
+exports.getCookies = getCookies;
 function getTokenSignature(_a) {
     var channel = _a.channel, cookie = _a.cookie, agent = _a.agent;
     return __awaiter(this, void 0, void 0, function () {
@@ -115,11 +118,13 @@ function getTokenSignature(_a) {
             switch (_c.label) {
                 case 0: return [4 /*yield*/, node_fetch_1.default("https://gql.twitch.tv/gql", {
                         agent: agent,
+                        timeout: 5000,
                         headers: {
                             "client-id": "kimne78kx3ncx6brgo4mv6wki5h1ko",
                             "content-type": "text/plain; charset=UTF-8",
-                            "device-id": "undefined",
+                            "device-id": getRandomId(),
                             cookie: cookie,
+                            "User-Agent": random_useragent_1.default.getRandom(),
                         },
                         referrer: "https://www.twitch.tv/",
                         referrerPolicy: "strict-origin-when-cross-origin",
@@ -143,27 +148,35 @@ function getTokenSignature(_a) {
         });
     });
 }
+exports.getTokenSignature = getTokenSignature;
 function fetchPlaylistUrl(_a) {
     var channel = _a.channel, token = _a.token, signature = _a.signature, agent = _a.agent;
     return __awaiter(this, void 0, void 0, function () {
-        var rand, req, playlist;
+        var rand, req, playlist, part;
         return __generator(this, function (_b) {
             switch (_b.label) {
                 case 0:
                     rand = Math.floor(9999999 * Math.random());
-                    return [4 /*yield*/, node_fetch_1.default("https://usher.ttvnw.net/api/channel/hls/" + channel + ".m3u8?allow_source=true&fast_bread=true&p=" + rand + "&play_session_id=" + getRandomId() + "&player_backend=mediaplayer&playlist_include_framerate=true&reassignments_supported=true&sig=" + signature + "&supported_codecs=avc1&token=" + token + "&cdm=wv&player_version=1.3.0", { agent: agent })];
+                    return [4 /*yield*/, node_fetch_1.default("https://usher.ttvnw.net/api/channel/hls/" + channel + ".m3u8?allow_source=true&p=2427365&fast_bread=true&p=" + rand + "&play_session_id=" + getRandomId() + "&player_backend=mediaplayer&playlist_include_framerate=true&reassignments_supported=true&sig=" + signature + "&supported_codecs=avc1&token=" + token + "&cdm=wv&player_version=1.3.0", {
+                            agent: agent,
+                            timeout: 5000,
+                            headers: {
+                                "User-Agent": random_useragent_1.default.getRandom(),
+                            },
+                        })];
                 case 1:
                     req = _b.sent();
                     return [4 /*yield*/, req.text()];
                 case 2:
                     playlist = _b.sent();
-                    return [2 /*return*/, playlist.slice(playlist.indexOf("https://"))];
+                    part = playlist;
+                    return [2 /*return*/, part.slice(part.indexOf("https://"))];
             }
         });
     });
 }
 function getFragmentUrl(playlist) {
-    var base = playlist.slice(playlist.indexOf("#EXTINF"));
+    var base = playlist.slice(playlist.indexOf("#EXT-X-TWITCH-PREFETCH"));
     var link = base.slice(base.indexOf("https://"));
     return link.slice(0, link.indexOf("\n"));
 }
@@ -175,6 +188,10 @@ function fetchPlaylist(_a) {
             switch (_b.label) {
                 case 0: return [4 /*yield*/, node_fetch_1.default(playlist, {
                         method: "GET",
+                        timeout: 5000,
+                        headers: {
+                            "User-Agent": random_useragent_1.default.getRandom(),
+                        },
                         agent: agent,
                     })];
                 case 1:
@@ -193,9 +210,9 @@ function sleep(ms) {
     });
 }
 function view(_a) {
-    var channel = _a.channel, agent = _a.agent, persist = _a.persist;
+    var channel = _a.channel, agent = _a.agent, persist = _a.persist, i = _a.i;
     return __awaiter(this, void 0, void 0, function () {
-        var cookie, _b, signature, token, channel_id, playlistUrl, device_id, client_id, ping;
+        var cookie, _b, signature, token, channel_id, playlistUrl;
         return __generator(this, function (_c) {
             switch (_c.label) {
                 case 0: return [4 /*yield*/, getCookies(channel)];
@@ -208,43 +225,38 @@ function view(_a) {
                     return [4 /*yield*/, fetchPlaylistUrl({ channel: channel, token: token, signature: signature, agent: agent })];
                 case 3:
                     playlistUrl = _c.sent();
-                    device_id = getRandomId();
-                    client_id = "kimne78kx3ncx6brgo4mv6wki5h1ko";
-                    return [4 /*yield*/, node_fetch_1.default("https://countess.twitch.tv/ping.gif?u=" + encodeURIComponent({ type: "channel", id: channel_id }))];
-                case 4:
-                    ping = _c.sent();
-                    return [4 /*yield*/, ping.buffer()];
-                case 5:
-                    _c.sent();
-                    return [4 /*yield*/, node_fetch_1.default("https://gql.twitch.tv/gql", {
-                            headers: {
-                                "client-id": client_id,
-                                "content-type": "text/plain;charset=UTF-8",
-                                "x-device-id": device_id,
-                                cookie: cookie,
-                            },
-                            body: JSON.stringify([
-                                {
-                                    operationName: "WatchTrackQuery",
-                                    variables: { channelLogin: channel, videoID: null, hasVideoID: false },
-                                    extensions: {
-                                        persistedQuery: {
-                                            version: 1,
-                                            sha256Hash: "38bbbbd9ae2e0150f335e208b05cf09978e542b464a78c2d4952673cd02ea42b",
-                                        },
-                                    },
-                                },
-                            ]),
-                            method: "POST",
-                        })];
-                case 6:
-                    _c.sent();
-                    if (!persist) return [3 /*break*/, 8];
-                    return [4 /*yield*/, persistsViews({ client_id: client_id, device_id: device_id, channel_id: channel_id, channel: channel })];
-                case 7:
-                    _c.sent();
-                    _c.label = 8;
-                case 8: return [2 /*return*/, sendViews({ playlistUrl: playlistUrl, agent: agent, i: 0, persist: persist })];
+                    return [4 /*yield*/, sendViews({ playlistUrl: playlistUrl, agent: agent, i: i, persist: persist })];
+                case 4: 
+                // const device_id = getRandomId();
+                // const client_id = "kimne78kx3ncx6brgo4mv6wki5h1ko";
+                // const ping = await fetch(
+                // 	`https://countess.twitch.tv/ping.gif?u=${encodeURIComponent({ type: "channel", id: channel_id })}`
+                // );
+                // await ping.buffer();
+                // await fetch("https://gql.twitch.tv/gql", {
+                // 	headers: {
+                // 		"client-id": client_id,
+                // 		"content-type": "text/plain;charset=UTF-8",
+                // 		"x-device-id": device_id,
+                // 		cookie,
+                // 		"User-Agent": randomUserAgent.getRandom(),
+                // 	},
+                // 	body: JSON.stringify([
+                // 		{
+                // 			operationName: "WatchTrackQuery",
+                // 			variables: { channelLogin: channel, videoID: null, hasVideoID: false },
+                // 			extensions: {
+                // 				persistedQuery: {
+                // 					version: 1,
+                // 					sha256Hash: "38bbbbd9ae2e0150f335e208b05cf09978e542b464a78c2d4952673cd02ea42b",
+                // 				},
+                // 			},
+                // 		},
+                // 	]),
+                // 	method: "POST",
+                // });
+                // if (persist) await persistsViews({ client_id, device_id, channel_id, channel });
+                return [2 /*return*/, _c.sent()];
             }
         });
     });
@@ -256,7 +268,7 @@ function persistsViews(_a) {
         var _this = this;
         return __generator(this, function (_b) {
             switch (_b.label) {
-                case 0: return [4 /*yield*/, node_fetch_1.default("https://static.twitchcdn.net/config/settings.b3e1951c3857d8afda25a4a4d9d76913.js")];
+                case 0: return [2 /*return*/];
                 case 1: return [4 /*yield*/, (_b.sent()).text()];
                 case 2:
                     settingsText = _b.sent();
@@ -468,12 +480,21 @@ function sendViews(_a) {
                 case 1:
                     playlist = _b.sent();
                     fragmentUrl = getFragmentUrl(playlist);
-                    return [4 /*yield*/, node_fetch_1.default(fragmentUrl, { method: "HEAD", agent: agent })];
+                    if (!fragmentUrl)
+                        console.log({ playlist: playlist, playlistUrl: playlistUrl });
+                    return [4 /*yield*/, node_fetch_1.default(fragmentUrl, {
+                            method: "HEAD",
+                            agent: agent,
+                            timeout: 5000,
+                            headers: {
+                                "User-Agent": random_useragent_1.default.getRandom(),
+                            },
+                        })];
                 case 2:
                     _b.sent();
-                    console.log(i++);
+                    console.log("[Bot] view: " + i);
                     if (persist) {
-                        setTimeout(sendViews.bind(null, { playlistUrl: playlistUrl, agent: agent, i: i, persist: persist }), 1000 * 5);
+                        setTimeout(sendViews.bind(null, { playlistUrl: playlistUrl, agent: agent, i: i, persist: persist }), 1000 * 2);
                     }
                     return [2 /*return*/];
             }
@@ -490,50 +511,34 @@ function getTorProxies(count, offset) {
                     promises = [];
                     portOffset = 9060 + offset;
                     _loop_1 = function () {
-                        var counter, port, tor;
-                        return __generator(this, function (_a) {
-                            switch (_a.label) {
-                                case 0:
-                                    counter = i + offset;
-                                    console.log("[Tor] connect: " + counter);
-                                    port = portOffset + i;
-                                    tor = child_process_1.spawn(torpath, ("--SocksPort " + port + " --DataDirectory " + __dirname + "/tmp/tor" + counter + " --GeoIPFile tor/geoip --GeoIPv6File tor/geoip6").split(" "));
-                                    tor.on("exit", function () { return console.log("[Tor] killed: " + counter); });
-                                    tor.on("error", function (error) { return console.error("[Tor] err", error.toString()); });
-                                    tor.stderr.on("data", function (data) { return console.error(data.toString()); });
-                                    promises.push(new Promise(function (res, rej) {
-                                        tor.stdout.on("data", function (data) {
-                                            // console.log(data.toString());
-                                            if (data.toString().includes("100%")) {
-                                                // console.log(data.toString().replace("\n", ""));
-                                                console.log("[Tor] connected: " + counter);
-                                                var agent = new SocksProxyAgent({ host: "localhost", port: port });
-                                                agent.tor = tor;
-                                                res(agent);
-                                            }
-                                        });
-                                        setTimeout(function () { return rej(new Error("[Tor] timeout connect")); }, 1000 * 30);
-                                    }));
-                                    return [4 /*yield*/, sleep(500)];
-                                case 1:
-                                    _a.sent();
-                                    return [2 /*return*/];
-                            }
-                        });
+                        var counter_1 = i + offset;
+                        console.log("[Tor] connect: " + counter_1);
+                        var port = portOffset + i;
+                        var dataDir = path_1.default.join(__dirname, "tmp", "tor" + counter_1);
+                        var geoip = path_1.default.join(__dirname, "tor", "geoip");
+                        var geoip6 = path_1.default.join(__dirname, "tor", "geoip6");
+                        var tor = child_process_1.spawn(torpath, ("--SocksPort " + port + " --DataDirectory " + dataDir + " --GeoIPFile " + geoip + " --GeoIPv6File " + geoip6).split(" "));
+                        tor.on("exit", function () { return console.log("[Tor] killed: " + counter_1); });
+                        tor.on("error", function (error) { return console.error("[Tor] err", error.toString()); });
+                        tor.stderr.on("data", function (data) { return console.error(data.toString()); });
+                        promises.push(new Promise(function (res, rej) {
+                            tor.stdout.on("data", function (data) {
+                                // console.log(data.toString().replace("\n", ""));
+                                if (data.toString().includes("100%")) {
+                                    console.log("[Tor] connected: " + counter_1);
+                                    var agent = new SocksProxyAgent({ host: "localhost", port: port });
+                                    agent.tor = tor;
+                                    res(agent);
+                                }
+                            });
+                            setTimeout(function () { return rej(new Error("[Tor] timeout connect")); }, 1000 * 30);
+                        }));
                     };
-                    i = 0;
-                    _a.label = 1;
+                    for (i = 0; i < count; i++) {
+                        _loop_1();
+                    }
+                    return [4 /*yield*/, Promise.all(promises.map(function (p) { return p.catch(function (e) { return e; }); }))];
                 case 1:
-                    if (!(i < count)) return [3 /*break*/, 4];
-                    return [5 /*yield**/, _loop_1()];
-                case 2:
-                    _a.sent();
-                    _a.label = 3;
-                case 3:
-                    i++;
-                    return [3 /*break*/, 1];
-                case 4: return [4 /*yield*/, Promise.all(promises.map(function (p) { return p.catch(function (e) { return e; }); }))];
-                case 5:
                     catched = _a.sent();
                     filtered = catched.filter(function (result) { return !(result instanceof Error); });
                     return [2 /*return*/, filtered];
@@ -575,85 +580,101 @@ function getListProxies(count) {
         });
     });
 }
-var threads;
-var threadIds;
+var threads = {};
+var threadIds = 0;
 var torI = 0;
-function addThread(channel) {
-    var _this = this;
-    var id = threadIds++;
-    threads[id] = true;
-    setTimeout(function () { return __awaiter(_this, void 0, void 0, function () {
-        var i, agent, error_1;
+var counter = 0;
+function addThread(channel, agent) {
+    return __awaiter(this, void 0, void 0, function () {
+        var id;
+        var _this = this;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
-                    if (!true) return [3 /*break*/, 6];
-                    if (threads[i] == false)
-                        return [2 /*return*/];
-                    _a.label = 1;
+                    id = threadIds++;
+                    threads[id] = true;
+                    if (!!agent) return [3 /*break*/, 2];
+                    return [4 /*yield*/, getTorProxies(1, torI++)];
                 case 1:
-                    _a.trys.push([1, 4, , 5]);
-                    i = torI++;
-                    console.log("[Bot] starting:" + i);
-                    return [4 /*yield*/, getTorProxies(1, i)];
-                case 2:
                     agent = (_a.sent())[0];
-                    if (!agent)
-                        return [2 /*return*/];
-                    return [4 /*yield*/, view({ channel: channel, agent: agent, persist: false })];
-                case 3:
-                    _a.sent();
-                    return [3 /*break*/, 5];
-                case 4:
-                    error_1 = _a.sent();
-                    console.error(error_1);
-                    return [3 /*break*/, 5];
-                case 5:
-                    tree_kill_1.default(agent.tor.pid, "SIGKILL");
-                    return [3 /*break*/, 0];
-                case 6: return [2 /*return*/];
+                    _a.label = 2;
+                case 2:
+                    setTimeout(function () { return __awaiter(_this, void 0, void 0, function () {
+                        var error_1;
+                        return __generator(this, function (_a) {
+                            switch (_a.label) {
+                                case 0:
+                                    if (!true) return [3 /*break*/, 5];
+                                    if (threads[id] == false)
+                                        return [2 /*return*/];
+                                    _a.label = 1;
+                                case 1:
+                                    _a.trys.push([1, 3, , 4]);
+                                    node_fetch_1.default("https://api.my-ip.io/ip", { agent: agent })
+                                        .then(function (x) { return x.text(); })
+                                        .then(function (x) { return console.log("[Bot] ip: " + x); });
+                                    return [4 /*yield*/, view({ channel: channel, agent: agent, persist: false, i: id })];
+                                case 2:
+                                    _a.sent();
+                                    return [3 /*break*/, 4];
+                                case 3:
+                                    error_1 = _a.sent();
+                                    console.error(error_1);
+                                    return [3 /*break*/, 4];
+                                case 4:
+                                    try {
+                                        // agent.tor.kill("SIGHUP");
+                                        tree_kill_1.default(agent.tor.pid, "SIGHUP");
+                                    }
+                                    catch (e) {
+                                        // console.error(e);
+                                    }
+                                    return [3 /*break*/, 0];
+                                case 5: return [2 /*return*/];
+                            }
+                        });
+                    }); });
+                    return [2 /*return*/];
             }
         });
-    }); });
+    });
 }
 function setThreads(channel, threadCount) {
     return __awaiter(this, void 0, void 0, function () {
-        var t;
+        var agents, t;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
                     threads = {};
-                    t = 0;
-                    _a.label = 1;
+                    return [4 /*yield*/, getTorProxies(threadCount, threadIds)];
                 case 1:
-                    if (!(t < threadCount)) return [3 /*break*/, 4];
-                    threads[t + threadIds] = true;
-                    addThread(channel);
-                    return [4 /*yield*/, sleep(250)];
-                case 2:
-                    _a.sent();
-                    _a.label = 3;
-                case 3:
-                    t++;
-                    return [3 /*break*/, 1];
-                case 4: return [2 /*return*/];
+                    agents = _a.sent();
+                    for (t = 0; t < threadCount; t++) {
+                        threads[t + threadIds] = true;
+                        addThread(channel, agents[t]);
+                        // await sleep(250);
+                    }
+                    return [2 /*return*/];
             }
         });
     });
 }
-rl.question("Twitch Channel name:\n", function (channel) { return __awaiter(void 0, void 0, void 0, function () {
-    return __generator(this, function (_a) {
-        switch (_a.label) {
-            case 0: return [4 /*yield*/, promises_1.default.mkdir(__dirname + "/tmp").catch(function (e) { })];
-            case 1:
-                _a.sent();
-                rl.question("How many viewers?\n", function (answer) {
-                    var viewers = parseInt(answer);
-                    if (isNaN(viewers) || viewers <= 0)
-                        viewers = 20;
-                    setThreads(channel, viewers / 2);
-                });
-                return [2 /*return*/];
-        }
-    });
-}); });
+if (!global.module) {
+    rl.question("Twitch Channel name:\n", function (channel) { return __awaiter(void 0, void 0, void 0, function () {
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0: return [4 /*yield*/, promises_1.default.mkdir(__dirname + "/tmp").catch(function (e) { })];
+                case 1:
+                    _a.sent();
+                    rl.question("How many viewers?\n", function (answer) {
+                        var viewers = parseInt(answer);
+                        if (isNaN(viewers) || viewers <= 0)
+                            viewers = 20;
+                        setThreads(channel, Math.ceil(viewers));
+                    });
+                    return [2 /*return*/];
+            }
+        });
+    }); });
+}
+//# sourceMappingURL=bot.js.map

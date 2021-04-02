@@ -8,7 +8,7 @@
 		"test": "echo \"Error: no test specified\" && exit 1",
 		"start": "npm run build && node dist/bot",
 		"build": "tsc -b .",
-		"pkg": "pkg -t node14-linux-x64,node14-macos-x64,node14-win-x64 ."
+		"pkg": "npm run build && pkg -t node14-linux-x64,node14-macos-x64,node14-win-x64 ."
 	},
 	"pkg": {
 		"script": "dist/**/*.js"
@@ -17,7 +17,7 @@
 	"author": "",
 	"license": "ISC",
 	"devDependencies": {
-		"@types/node": "^14.14.31",
+		"@types/node": "^14.14.37",
 		"pkg": "^4.4.9"
 	},
 	"dependencies": {
@@ -25,7 +25,9 @@
 		"https-proxy-agent": "^5.0.0",
 		"missing-native-js-functions": "^1.2.4",
 		"node-fetch": "^2.6.1",
+		"random-useragent": "^0.5.0",
 		"socks-proxy-agent": "^5.0.0",
-		"tree-kill": "^1.2.2"
+		"tree-kill": "^1.2.2",
+		"ws": "^7.4.3"
 	}
 }

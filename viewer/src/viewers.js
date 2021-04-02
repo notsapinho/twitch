@@ -35,8 +35,7 @@ async function test() {
 		credentials: "include",
 	});
 	const json = await req.json();
-	const { viewersCount } = json[0].data.user.stream;
-	console.log(viewersCount);
+	console.log(json[0].data.user?.stream?.viewersCount);
 	setTimeout(test, 1000);
 }
 

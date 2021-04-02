@@ -41,10 +41,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 var node_fetch_1 = __importDefault(require("node-fetch"));
 function test() {
+    var _a, _b;
     return __awaiter(this, void 0, void 0, function () {
-        var req, json, viewersCount;
-        return __generator(this, function (_a) {
-            switch (_a.label) {
+        var req, json;
+        return __generator(this, function (_c) {
+            switch (_c.label) {
                 case 0: return [4 /*yield*/, node_fetch_1.default("https://gql.twitch.tv/gql", {
                         headers: {
                             accept: "*/*",
@@ -79,12 +80,11 @@ function test() {
                         credentials: "include",
                     })];
                 case 1:
-                    req = _a.sent();
+                    req = _c.sent();
                     return [4 /*yield*/, req.json()];
                 case 2:
-                    json = _a.sent();
-                    viewersCount = json[0].data.user.stream.viewersCount;
-                    console.log(viewersCount);
+                    json = _c.sent();
+                    console.log((_b = (_a = json[0].data.user) === null || _a === void 0 ? void 0 : _a.stream) === null || _b === void 0 ? void 0 : _b.viewersCount);
                     setTimeout(test, 1000);
                     return [2 /*return*/];
             }
@@ -92,3 +92,4 @@ function test() {
     });
 }
 test();
+//# sourceMappingURL=viewers.js.map

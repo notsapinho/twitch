@@ -17,7 +17,8 @@ if (process.platform == "win32") {
 } else if (process.platform == "darwin") {
 	torpath = path.join(__dirname, "tor", "tor-mac");
 } else if (process.platform == "linux") {
-	torpath = path.join(__dirname, "tor", "tor-linux");
+	console.log("------------\n[Notice] Please install tor:\napt install tor\n------------\n");
+	torpath = "tor";
 } else {
 	console.error("warning unsupported platform");
 }

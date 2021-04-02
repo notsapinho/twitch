@@ -95,6 +95,7 @@ function main(channel) {
 }
 rl.question("Twitch Channel name:\n", function (channel) { return __awaiter(void 0, void 0, void 0, function () {
     return __generator(this, function (_a) {
+        console.log(channel);
         main(channel);
         return [2 /*return*/];
     });

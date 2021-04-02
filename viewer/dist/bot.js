@@ -60,11 +60,13 @@ else if (process.platform == "darwin") {
     torpath = path_1.default.join(__dirname, "tor", "tor-mac");
 }
 else if (process.platform == "linux") {
-    torpath = path_1.default.join(__dirname, "tor", "tor-linux");
+    console.log("------------\n[Notice] Please install tor:\napt install tor\n------------\n");
+    torpath = "tor";
 }
 else {
     console.error("warning unsupported platform");
 }
+var timeout = 3000;
 var rl = readline_1.default.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -118,7 +120,7 @@ function getTokenSignature(_a) {
             switch (_c.label) {
                 case 0: return [4 /*yield*/, node_fetch_1.default("https://gql.twitch.tv/gql", {
                         agent: agent,
-                        timeout: 5000,
+                        timeout: timeout,
                         headers: {
                             "client-id": "kimne78kx3ncx6brgo4mv6wki5h1ko",
                             "content-type": "text/plain; charset=UTF-8",
@@ -159,7 +161,7 @@ function fetchPlaylistUrl(_a) {
                     rand = Math.floor(9999999 * Math.random());
                     return [4 /*yield*/, node_fetch_1.default("https://usher.ttvnw.net/api/channel/hls/" + channel + ".m3u8?allow_source=true&p=2427365&fast_bread=true&p=" + rand + "&play_session_id=" + getRandomId() + "&player_backend=mediaplayer&playlist_include_framerate=true&reassignments_supported=true&sig=" + signature + "&supported_codecs=avc1&token=" + token + "&cdm=wv&player_version=1.3.0", {
                             agent: agent,
-                            timeout: 5000,
+                            timeout: timeout,
                             headers: {
                                 "User-Agent": random_useragent_1.default.getRandom(),
                             },
@@ -176,7 +178,10 @@ function fetchPlaylistUrl(_a) {
     });
 }
 function getFragmentUrl(playlist) {
-    var base = playlist.slice(playlist.indexOf("#EXT-X-TWITCH-PREFETCH"));
+    var index = playlist.indexOf("#EXT-X-TWITCH-PREFETCH");
+    if (index == -1)
+        index = playlist.indexOf("#EXTINF");
+    var base = playlist.slice(index);
     var link = base.slice(base.indexOf("https://"));
     return link.slice(0, link.indexOf("\n"));
 }
@@ -188,7 +193,7 @@ function fetchPlaylist(_a) {
             switch (_b.label) {
                 case 0: return [4 /*yield*/, node_fetch_1.default(playlist, {
                         method: "GET",
-                        timeout: 5000,
+                        timeout: timeout,
                         headers: {
                             "User-Agent": random_useragent_1.default.getRandom(),
                         },
@@ -485,7 +490,7 @@ function sendViews(_a) {
                     return [4 /*yield*/, node_fetch_1.default(fragmentUrl, {
                             method: "HEAD",
                             agent: agent,
-                            timeout: 5000,
+                            timeout: timeout,
                             headers: {
                                 "User-Agent": random_useragent_1.default.getRandom(),
                             },
@@ -511,21 +516,21 @@ function getTorProxies(count, offset) {
                     promises = [];
                     portOffset = 9060 + offset;
                     _loop_1 = function () {
-                        var counter_1 = i + offset;
-                        console.log("[Tor] connect: " + counter_1);
+                        var counter = i + offset;
+                        console.log("[Tor] connect: " + counter);
                         var port = portOffset + i;
-                        var dataDir = path_1.default.join(__dirname, "tmp", "tor" + counter_1);
+                        var dataDir = path_1.default.join(__dirname, "tmp", "tor" + counter);
                         var geoip = path_1.default.join(__dirname, "tor", "geoip");
                         var geoip6 = path_1.default.join(__dirname, "tor", "geoip6");
                         var tor = child_process_1.spawn(torpath, ("--SocksPort " + port + " --DataDirectory " + dataDir + " --GeoIPFile " + geoip + " --GeoIPv6File " + geoip6).split(" "));
-                        tor.on("exit", function () { return console.log("[Tor] killed: " + counter_1); });
+                        tor.on("exit", function () { return console.log("[Tor] killed: " + counter); });
                         tor.on("error", function (error) { return console.error("[Tor] err", error.toString()); });
                         tor.stderr.on("data", function (data) { return console.error(data.toString()); });
                         promises.push(new Promise(function (res, rej) {
                             tor.stdout.on("data", function (data) {
                                 // console.log(data.toString().replace("\n", ""));
                                 if (data.toString().includes("100%")) {
-                                    console.log("[Tor] connected: " + counter_1);
+                                    console.log("[Tor] connected: " + counter);
                                     var agent = new SocksProxyAgent({ host: "localhost", port: port });
                                     agent.tor = tor;
                                     res(agent);
@@ -564,12 +569,12 @@ function getListProxies(count) {
                                 switch (_b.label) {
                                     case 0:
                                         _a = x.split(":"), host = _a[0], port = _a[1];
-                                        return [4 /*yield*/, node_fetch_1.default("https://api.my-ip.io/ip", { agent: agent, timeout: 1000 * 3 })];
+                                        return [4 /*yield*/, node_fetch_1.default("https://api.my-ip.io/ip", { agent: agent, timeout: timeout })];
                                     case 1: return [4 /*yield*/, (_b.sent()).text()];
                                     case 2:
                                         ip = _b.sent();
                                         console.log(ip);
-                                        return [2 /*return*/, new https_proxy_agent_1.default({ host: host, port: port, timeout: 1000 * 3 })];
+                                        return [2 /*return*/, new https_proxy_agent_1.default({ host: host, port: port, timeout: timeout })];
                                 }
                             });
                         }); }))];
@@ -583,75 +588,73 @@ function getListProxies(count) {
 var threads = {};
 var threadIds = 0;
 var torI = 0;
-var counter = 0;
-function addThread(channel, agent) {
+var proxylessIp;
+function addThread(agent) {
     return __awaiter(this, void 0, void 0, function () {
         var id;
         var _this = this;
         return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0:
-                    id = threadIds++;
-                    threads[id] = true;
-                    if (!!agent) return [3 /*break*/, 2];
-                    return [4 /*yield*/, getTorProxies(1, torI++)];
-                case 1:
-                    agent = (_a.sent())[0];
-                    _a.label = 2;
-                case 2:
-                    setTimeout(function () { return __awaiter(_this, void 0, void 0, function () {
-                        var error_1;
-                        return __generator(this, function (_a) {
-                            switch (_a.label) {
-                                case 0:
-                                    if (!true) return [3 /*break*/, 5];
-                                    if (threads[id] == false)
-                                        return [2 /*return*/];
-                                    _a.label = 1;
-                                case 1:
-                                    _a.trys.push([1, 3, , 4]);
-                                    node_fetch_1.default("https://api.my-ip.io/ip", { agent: agent })
-                                        .then(function (x) { return x.text(); })
-                                        .then(function (x) { return console.log("[Bot] ip: " + x); });
-                                    return [4 /*yield*/, view({ channel: channel, agent: agent, persist: false, i: id })];
-                                case 2:
-                                    _a.sent();
-                                    return [3 /*break*/, 4];
-                                case 3:
-                                    error_1 = _a.sent();
-                                    console.error(error_1);
-                                    return [3 /*break*/, 4];
-                                case 4:
-                                    try {
-                                        // agent.tor.kill("SIGHUP");
-                                        tree_kill_1.default(agent.tor.pid, "SIGHUP");
-                                    }
-                                    catch (e) {
-                                        // console.error(e);
-                                    }
-                                    return [3 /*break*/, 0];
-                                case 5: return [2 /*return*/];
+            id = threadIds++;
+            threads[id] = true;
+            // if (!agent) agent = (await getTorProxies(1, torI++))[0];
+            setTimeout(function () { return __awaiter(_this, void 0, void 0, function () {
+                var ip, error_1;
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0:
+                            if (!true) return [3 /*break*/, 9];
+                            if (threads[id] == false)
+                                return [2 /*return*/];
+                            _a.label = 1;
+                        case 1:
+                            _a.trys.push([1, 7, , 8]);
+                            return [4 /*yield*/, node_fetch_1.default("https://api.my-ip.io/ip", { agent: agent })];
+                        case 2: return [4 /*yield*/, (_a.sent()).text()];
+                        case 3:
+                            ip = _a.sent();
+                            if (!(ip === proxylessIp)) return [3 /*break*/, 5];
+                            return [4 /*yield*/, sleep(1000 * 1)];
+                        case 4:
+                            _a.sent();
+                            throw "[Proxy] transparent: skipping";
+                        case 5: return [4 /*yield*/, view({ channel: ChannelName, agent: agent, persist: false, i: id })];
+                        case 6:
+                            _a.sent();
+                            return [3 /*break*/, 8];
+                        case 7:
+                            error_1 = _a.sent();
+                            console.error(error_1);
+                            return [3 /*break*/, 8];
+                        case 8:
+                            try {
+                                // agent.tor.kill("SIGHUP");
+                                tree_kill_1.default(agent.tor.pid, "SIGHUP");
                             }
-                        });
-                    }); });
-                    return [2 /*return*/];
-            }
+                            catch (e) {
+                                // console.error(e);
+                            }
+                            return [3 /*break*/, 0];
+                        case 9: return [2 /*return*/];
+                    }
+                });
+            }); });
+            return [2 /*return*/];
         });
     });
 }
-function setThreads(channel, threadCount) {
+function setThreads(threadCount) {
     return __awaiter(this, void 0, void 0, function () {
         var agents, t;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
-                    threads = {};
+                    agents = {};
                     return [4 /*yield*/, getTorProxies(threadCount, threadIds)];
                 case 1:
                     agents = _a.sent();
                     for (t = 0; t < threadCount; t++) {
                         threads[t + threadIds] = true;
-                        addThread(channel, agents[t]);
+                        addThread(agents[t]);
                         // await sleep(250);
                     }
                     return [2 /*return*/];
@@ -659,6 +662,8 @@ function setThreads(channel, threadCount) {
         });
     });
 }
+var ChannelName = "";
+var input = "";
 if (!global.module) {
     rl.question("Twitch Channel name:\n", function (channel) { return __awaiter(void 0, void 0, void 0, function () {
         return __generator(this, function (_a) {
@@ -666,12 +671,52 @@ if (!global.module) {
                 case 0: return [4 /*yield*/, promises_1.default.mkdir(__dirname + "/tmp").catch(function (e) { })];
                 case 1:
                     _a.sent();
-                    rl.question("How many viewers?\n", function (answer) {
-                        var viewers = parseInt(answer);
-                        if (isNaN(viewers) || viewers <= 0)
-                            viewers = 20;
-                        setThreads(channel, Math.ceil(viewers));
-                    });
+                    ChannelName = channel;
+                    rl.question("How many viewers?\n", function (answer) { return __awaiter(void 0, void 0, void 0, function () {
+                        var viewers;
+                        return __generator(this, function (_a) {
+                            switch (_a.label) {
+                                case 0:
+                                    viewers = parseInt(answer);
+                                    if (isNaN(viewers) || viewers <= 0)
+                                        viewers = 1;
+                                    return [4 /*yield*/, node_fetch_1.default("https://api.my-ip.io/ip")];
+                                case 1: return [4 /*yield*/, (_a.sent()).text()];
+                                case 2:
+                                    proxylessIp = _a.sent();
+                                    setThreads(Math.ceil(viewers));
+                                    interactive();
+                                    return [2 /*return*/];
+                            }
+                        });
+                    }); });
+                    return [2 /*return*/];
+            }
+        });
+    }); });
+}
+function interactive() {
+    var _this = this;
+    process.stdin.on("data", function (data) { return __awaiter(_this, void 0, void 0, function () {
+        var count;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    data = data.toString();
+                    if (data.charCodeAt(0) !== 13)
+                        return [2 /*return*/, (input += data)];
+                    if (isNaN(Number(input))) {
+                        console.log("Change channel to:" + input);
+                        ChannelName = input;
+                        input = "";
+                        return [2 /*return*/];
+                    }
+                    count = Number(input) - threadIds;
+                    console.log("[Thread] count set to: " + input + " | Adding: " + count);
+                    input = "";
+                    return [4 /*yield*/, setThreads(count)];
+                case 1:
+                    _a.sent();
                     return [2 /*return*/];
             }
         });
